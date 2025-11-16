@@ -1,0 +1,7 @@
+requests
+beautifulsoup4
+black
+flake8
+pytest
+fastapi
+uvicorn[standard]
