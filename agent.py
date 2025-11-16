@@ -1,42 +1,81 @@
+import os
+import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
 class Agent:
-    def __init__(self, html_file):
-        self.html_file = html_file
+    """A simple agent that can fetch pages, parse them, and simulate interactions."""
+
+    def __init__(self, base_url: str):
+        """
+        Initialize the agent with a base URL or local HTML file path.
+        :param base_url: The starting URL or path to the HTML file.
+        """
+        self.session = requests.Session()
+        self.base_url = base_url
+        self.current_url = base_url
         self.soup = None
+        self.action_log = []
 
-    def load_page(self):
-        """Load the HTML page into BeautifulSoup"""
-        with open(self.html_file, 'r', encoding='utf-8') as f:
-            self.soup = BeautifulSoup(f, 'html.parser')
-
-    def find_element_by_text(self, text):
-        """Find the first element containing the given text"""
-        return self.soup.find(lambda tag: tag.string and text in tag.string)
-
-    def click_element(self, element):
-        """Simulate clicking an element by printing an action"""
-        if element:
-            print(f"Clicked element: <{element.name}> with text '{element.get_text(strip=True)}'")
+    def fetch_page(self, url: str = None) -> None:
+        """Fetch the given URL (or the current URL if None) and parse it with BeautifulSoup."""
+        target = url or self.current_url
+        # Support local files (file:// or plain path)
+        if target.startswith("file://"):
+            file_path = target[len("file://"):]
+            with open(file_path, "r", encoding="utf-8") as f:
+                html = f.read()
+        elif os.path.isfile(target):
+            with open(target, "r", encoding="utf-8") as f:
+                html = f.read()
         else:
-            print("Element not found to click")
+            response = self.session.get(target)
+            response.raise_for_status()
+            html = response.text
+        self.current_url = target
+        self.soup = BeautifulSoup(html, "html.parser")
+        self.action_log.append(f"Fetched page: {target}")
 
-    def input_text(self, input_name, text):
-        """Simulate typing text into an input field"""
-        input_tag = self.soup.find('input', attrs={'name': input_name})
+    def find_element_by_text(self, tag: str, text: str):
+        """Find the first element with the given tag containing the specified text (case-insensitive)."""
+        if not self.soup:
+            raise RuntimeError("No page loaded. Call fetch_page() first.")
+        return self.soup.find(tag, string=lambda s: s and text.lower() in s.lower())
+
+    def click_link(self, link_text: str) -> None:
+        """Find an anchor by its text and follow its href if present."""
+        element = self.find_element_by_text('a', link_text)
+        if element and element.get('href'):
+            next_url = urljoin(self.current_url, element['href'])
+            self.action_log.append(f"Clicking link with text '{link_text}' -> {next_url}")
+            self.fetch_page(next_url)
+        else:
+            self.action_log.append(f"No link found with text '{link_text}'")
+
+    def input_text(self, name: str, value: str) -> None:
+        """Simulate entering text into an input field. Logs the action."""
+        if not self.soup:
+            raise RuntimeError("No page loaded. Call fetch_page() first.")
+        input_tag = self.soup.find('input', attrs={'name': name})
         if input_tag:
-            print(f"Inputting '{text}' into field '{input_name}'")
+            self.action_log.append(f"Inputting '{value}' into field '{name}' (not submitted)")
         else:
-            print(f"Input field '{input_name}' not found")
+            self.action_log.append(f"Input field '{name}' not found")
 
-    def run_demo(self):
-        """Run a demonstration sequence of interactions"""
-        self.load_page()
-        # Example actions: fill a username and click a submit button
-        self.input_text('username', 'test_user')
-        button = self.find_element_by_text('Submit')
-        self.click_element(button)
+    def get_action_log(self):
+        """Return the list of actions performed."""
+        return list(self.action_log)
 
-if __name__ == '__main__':
-    agent = Agent('sample_page.html')
-    agent.run_demo()
+    def run_demo(self) -> None:
+        """Run a demo sequence showing basic interactions."""
+        # Load the starting page
+        self.fetch_page()
+        # Example actions: this part can be customized per site
+        # For a simple HTML sample, try clicking a link and filling a form
+        # Find and click a link if exists
+        self.click_link('Submit')  # example: follow a link named 'Submit'
+        # Simulate inputting text into a username field
+        self.input_text('username', 'demo_user')
+        # Print the log
+        for action in self.action_log:
+            print(action)
