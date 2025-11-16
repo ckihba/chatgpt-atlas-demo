@@ -10,26 +10,47 @@ A desktop application that enables autonomous web page interaction through natur
 
 ### Run Locally
 
-1. **Start Python analysis server:**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   python agent_bridge.py
-   ```
+**One-command startup:**
 
-2. **Start Electron app** (new terminal):
-   ```bash
-   cd electron_app
-   npm install
-   npm start
-   ```
+**macOS/Linux:**
+```bash
+./start.sh
+```
 
-3. **Try it:**
-   - UI loads `sample_page.html` by default
-   - Enter goal: `"click Submit"` or `"enter username"`
-   - Press "Capture & Analyze"
-   - Select action → "Execute Selected Action"
+**Windows:**
+```cmd
+start.bat
+```
+
+The startup script will:
+- Create Python virtualenv and install dependencies
+- Install Node modules if needed
+- Start the Python bridge (if not running)
+- Launch the Electron app
+
+### Manual Setup (if needed)
+
+**Terminal 1 — Python bridge:**
+```bash
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+python agent_bridge.py
+```
+
+**Terminal 2 — Electron app:**
+```bash
+cd electron_app
+npm install
+npm start
+```
+
+### Try It Out
+
+- UI loads `sample_page.html` by default
+- Enter goal: `"click Submit"` or `"enter username"`
+- Press "Capture & Analyze"
+- Select action → "Execute Selected Action"
 
 ## Architecture
 
