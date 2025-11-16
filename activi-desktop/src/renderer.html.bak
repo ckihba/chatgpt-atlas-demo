@@ -1,0 +1,2118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+  <title>Activi.ai Desktop Agent</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      background: #1a1a1a;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #browserContainer {
+      flex: 1;
+      position: relative;
+      background: #000;
+      transition: margin-right 0.3s ease;
+    }
+    
+    #browserContainer.chat-open {
+      margin-right: 400px;
+    }
+    
+    webview {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    
+    #topbar {
+      height: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      color: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      position: relative;
+      z-index: 1000;
+    }
+    
+    .logo {
+      font-weight: 700;
+      font-size: 14px;
+      margin-right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      margin-right: auto;
+    }
+    
+    .mode-btn {
+      padding: 4px 12px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    
+    .mode-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .mode-btn.active {
+      background: rgba(255,255,255,0.4);
+      border-color: white;
+      font-weight: 700;
+      box-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      margin-right: 16px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-dot.running {
+      background: #fbbf24;
+    }
+    
+    .status-dot.paused {
+      background: #fb923c;
+    }
+    
+    .status-dot.error {
+      background: #ef4444;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .control-btn {
+      padding: 4px 12px;
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    
+    .control-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .control-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    #overlay {
+      position: fixed;
+      top: 40px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1999;
+    }
+    
+    #overlay.show {
+      display: flex;
+    }
+    
+    #chatPanel {
+      position: fixed;
+      right: -400px;
+      top: 40px;
+      bottom: 0;
+      width: 400px;
+      background: white;
+      box-shadow: -2px 0 16px rgba(0,0,0,0.2);
+      transition: right 0.3s ease;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #chatPanel.open {
+      right: 0;
+    }
+    
+    .chat-header {
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .chat-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    
+    .chat-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+    
+    .chat-close:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #f9fafb;
+    }
+    
+    .message {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .message.user {
+      align-items: flex-end;
+    }
+    
+    .message.agent {
+      align-items: flex-start;
+    }
+    
+    .message-bubble {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      word-wrap: break-word;
+    }
+    
+    .message.user .message-bubble {
+      background: #667eea;
+      color: white;
+    }
+    
+    .message.agent .message-bubble {
+      background: white;
+      color: #1a1a1a;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .message-label {
+      font-size: 11px;
+      color: #6b7280;
+      margin-bottom: 4px;
+      padding: 0 4px;
+    }
+    
+    .chat-input-container {
+      padding: 16px;
+      background: white;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    .chat-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      resize: none;
+      font-family: inherit;
+    }
+    
+    .chat-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .chat-send {
+      margin-top: 8px;
+      width: 100%;
+      padding: 10px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .chat-send:hover {
+      background: #5568d3;
+    }
+    
+    .chat-send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .overlay-content {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      max-width: 400px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+    
+    .overlay-content h3 {
+      margin-bottom: 16px;
+      color: #1a1a1a;
+    }
+    
+    .overlay-content p {
+      color: #666;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    
+    .overlay-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    
+    .overlay-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .overlay-btn.primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .overlay-btn.primary:hover {
+      background: #5568d3;
+    }
+    
+    .overlay-btn.secondary {
+      background: #e5e7eb;
+      color: #1a1a1a;
+    }
+    
+    .overlay-btn.secondary:hover {
+      background: #d1d5db;
+    }
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <div class="logo">
+      <span>🤖</span>
+      <span>ACTIVI DESKTOP</span>
+    </div>
+    
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="manual">Manual</button>
+      <button class="mode-btn" data-mode="interactive">Interactive</button>
+      <button class="mode-btn" data-mode="autonomous">Autonomous</button>
+    </div>
+    
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+    
+    <div class="controls">
+      <button class="control-btn" id="chatToggle">💬 Chat</button>
+      <button class="control-btn" id="pauseBtn" disabled>⏸ Pause</button>
+      <button class="control-btn" id="stopBtn" disabled>⏹ Stop</button>
+      <button class="control-btn" id="settingsBtn">⚙️ Settings</button>
+    </div>
+  </div>
+  
+  <div id="browserContainer">
+    <webview 
+      id="browser" 
+      src="https://activi.ai"
+      partition="persist:activi"
+    ></webview>
+  </div>
+  
+  <div id="overlay">
+    <div class="overlay-content">
+      <h3>Desktop Agent Active</h3>
+      <p id="overlayMessage">Agent is working...</p>
+      <div class="overlay-buttons">
+        <button class="overlay-btn secondary" id="overlayCancel">Cancel</button>
+        <button class="overlay-btn primary" id="overlayOk">OK</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="chatPanel">
+    <div class="chat-header">
+      <h3>💬 Chat with Agent</h3>
+      <button class="chat-close" id="chatClose">×</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="message agent">
+        <div class="message-label">Agent</div>
+        <div class="message-bubble">
+          Hi! I'm your Activi.ai Desktop Agent. I can help you interact with websites. Try asking me to:
+          <br><br>
+          • "Click the Start Now button"<br>
+          • "Fill in the email field with test@example.com"<br>
+          • "Navigate to the pricing page"<br>
+          • "Extract all the feature names from this page"
+        </div>
+      </div>
+    </div>
+    <div class="chat-input-container">
+      <textarea 
+        id="chatInput" 
+        class="chat-input" 
+        placeholder="Ask me to interact with the page..."
+        rows="3"
+      ></textarea>
+      <button id="chatSend" class="chat-send">Send</button>
+    </div>
+  </div>
+  
+
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM loaded, initializing...');
+    
+    // Get webview element
+    const webview = document.getElementById('browser');
+    
+    // Webview event listeners
+    webview.addEventListener('did-start-loading', () => {
+      console.log('Webview started loading');
+    });
+    
+    webview.addEventListener('did-finish-load', () => {
+      console.log('Webview finished loading:', webview.getURL());
+    });
+    
+    webview.addEventListener('did-fail-load', (e) => {
+      console.error('Webview failed to load:', e);
+    });
+    
+    let currentMode = 'manual';
+    
+    // Mode toggle with visual feedback
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        console.log('Button clicked:', btn.dataset.mode);
+        
+        // Remove active from all buttons
+        document.querySelectorAll('.mode-btn').forEach(b => {
+          b.classList.remove('active');
+          console.log('Removed active from:', b.dataset.mode);
+        });
+        
+        // Add active to clicked button
+        btn.classList.add('active');
+        currentMode = btn.dataset.mode;
+        
+        console.log('Mode changed to:', currentMode);
+        console.log('Button classes:', btn.className);
+        
+        // Visual feedback
+        btn.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          btn.style.transform = 'scale(1)';
+        }, 100);
+        
+        // Update status text
+        updateStatus('idle', `Mode: ${currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}`);
+      });
+    });
+    
+    // Status updates
+    function updateStatus(status, text) {
+      const dot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      
+      dot.className = 'status-dot ' + status;
+      statusText.textContent = text;
+      
+      // Enable/disable controls based on status
+      const pauseBtn = document.getElementById('pauseBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      
+      if (status === 'running') {
+        pauseBtn.disabled = false;
+        stopBtn.disabled = false;
+      } else {
+        pauseBtn.disabled = true;
+        stopBtn.disabled = true;
+      }
+    }
+    
+    // Control buttons
+    document.getElementById('pauseBtn').addEventListener('click', () => {
+      console.log('Pause clicked');
+      // Will be connected to IPC
+    });
+    
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      console.log('Stop clicked');
+      // Will be connected to IPC
+    });
+    
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      console.log('Settings clicked');
+      showSettingsDialog();
+    });
+    
+    function showSettingsDialog() {
+      const overlay = document.getElementById('overlay');
+      const content = document.querySelector('.overlay-content');
+      
+      content.innerHTML = `
+        <h3>⚙️ Settings</h3>
+        <div style="text-align: left; margin: 16px 0;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">LLM Provider:</label>
+          <select id="llmProvider" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px;">
+            <option value="openai">OpenAI</option>
+            <option value="activi-cloud">Activi.ai Cloud</option>
+            <option value="azure">Azure OpenAI</option>
+            <option value="local">Local (LM Studio/Ollama)</option>
+          </select>
+          
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">API Key:</label>
+          <input type="password" id="llmApiKey" placeholder="sk-..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px;">
+          
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Model:</label>
+          <select id="llmModel" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px;">
+            <option value="gpt-4o-mini">GPT-4o Mini (Recommended - Fast & Cheap)</option>
+            <option value="gpt-4o">GPT-4o (Best Quality)</option>
+            <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Fastest)</option>
+          </select>
+          
+          <div style="background: #f0f9ff; padding: 12px; border-radius: 4px; font-size: 12px; color: #0369a1;">
+            💡 <strong>Tip:</strong> Get an API key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #0369a1;">OpenAI</a> or use Activi.ai Cloud for hosted LLM.
+          </div>
+        </div>
+        <div class="overlay-buttons">
+          <button class="overlay-btn secondary" id="settingsCancel">Cancel</button>
+          <button class="overlay-btn primary" id="settingsSave">Save</button>
+        </div>
+      `;
+      
+      // Load current config
+      if (window.activiDesktop?.getConfig) {
+        window.activiDesktop.getConfig().then(config => {
+          document.getElementById('llmProvider').value = config.llm?.provider || 'openai';
+          document.getElementById('llmApiKey').value = config.llm?.apiKey || '';
+          document.getElementById('llmModel').value = config.llm?.model || 'gpt-4-turbo-preview';
+        });
+      }
+      
+      overlay.classList.add('show');
+      
+      document.getElementById('settingsCancel').onclick = () => {
+        overlay.classList.remove('show');
+      };
+      
+      document.getElementById('settingsSave').onclick = async () => {
+        const provider = document.getElementById('llmProvider').value;
+        const apiKey = document.getElementById('llmApiKey').value;
+        const model = document.getElementById('llmModel').value;
+        
+        if (!apiKey && provider !== 'local') {
+          alert('Please enter an API key');
+          return;
+        }
+        
+        if (window.activiDesktop?.updateConfig) {
+          await window.activiDesktop.updateConfig({
+            llm: { provider, apiKey, model }
+          });
+          
+          overlay.classList.remove('show');
+          addMessage('agent', '✅ Settings saved! You can now use AI-powered chat.');
+        }
+      };
+    }
+    
+    // Overlay
+    function showOverlay(title, message) {
+      document.querySelector('.overlay-content h3').textContent = title;
+      document.getElementById('overlayMessage').textContent = message;
+      document.getElementById('overlay').classList.add('show');
+    }
+    
+    function hideOverlay() {
+      document.getElementById('overlay').classList.remove('show');
+    }
+    
+    document.getElementById('overlayCancel').addEventListener('click', hideOverlay);
+    document.getElementById('overlayOk').addEventListener('click', hideOverlay);
+    
+    // Chat panel
+    const chatPanel = document.getElementById('chatPanel');
+    const chatToggle = document.getElementById('chatToggle');
+    const chatClose = document.getElementById('chatClose');
+    const chatInput = document.getElementById('chatInput');
+    const chatSend = document.getElementById('chatSend');
+    const chatMessages = document.getElementById('chatMessages');
+    
+    console.log('Chat elements:', { chatPanel, chatToggle, chatClose, chatInput, chatSend, chatMessages });
+    
+    const browserContainer = document.getElementById('browserContainer');
+    
+    if (chatToggle) {
+      chatToggle.addEventListener('click', (e) => {
+        console.log('Chat toggle clicked!');
+        e.preventDefault();
+        e.stopPropagation();
+        chatPanel.classList.add('open');
+        browserContainer.classList.add('chat-open');
+        setTimeout(() => chatInput.focus(), 300);
+      });
+    } else {
+      console.error('Chat toggle button not found!');
+    }
+    
+    chatClose.addEventListener('click', () => {
+      chatPanel.classList.remove('open');
+      browserContainer.classList.remove('chat-open');
+    });
+    
+    // Autonomous execution state
+    let autonomousMode = false;
+    let autonomousGoal = '';
+    let conversationHistory = [];
+    let maxAutonomousSteps = 10;
+    let currentStep = 0;
+    let stopRequested = false;
+    
+    // Stop button handler for autonomous mode
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      console.log('Stop requested');
+      stopRequested = true;
+      autonomousMode = false;
+      updateStatus('idle', 'Stopped');
+      addMessage('agent', '⏹️ Autonomous execution stopped by user');
+    });
+    
+    // Shared action execution function for both Interactive and Autonomous modes
+    async function executeActionChain(plan, domSnapshot) {
+      console.log('executeActionChain called with:', plan);
+      
+      if (!plan.actions || plan.actions.length === 0) {
+        addMessage('agent', '❌ No actions to execute');
+        return;
+      }
+      
+      if (plan.reasoning) {
+        addMessage('agent', `💡 ${plan.reasoning}`);
+      }
+      
+      updateStatus('running', 'Executing actions...');
+      
+      try {
+        for (let i = 0; i < plan.actions.length; i++) {
+          const action = plan.actions[i];
+          const stepNum = i + 1;
+          
+          console.log(`Executing action ${stepNum}:`, action);
+          addMessage('agent', `⚡ Step ${stepNum}/${plan.actions.length}: ${action.type}...`);
+          
+          if (action.type === 'click') {
+            const result = await executeClickAction(action, domSnapshot);
+            if (!result.success) {
+              addMessage('agent', `❌ Failed: ${result.error}`);
+            } else {
+              addMessage('agent', `✅ Clicked: ${result.text}`);
+            }
+            
+          } else if (action.type === 'input') {
+            const result = await executeInputAction(action, domSnapshot);
+            if (!result.success) {
+              addMessage('agent', `❌ Failed: ${result.error}`);
+            } else {
+              addMessage('agent', `✅ Entered text into: ${result.field}`);
+            }
+            
+          } else if (action.type === 'navigate') {
+            const url = action.selector?.value || action.value;
+            webview.src = url;
+            addMessage('agent', `✅ Navigating to: ${url}`);
+            
+          } else if (action.type === 'wait') {
+            const ms = action.value || action.waitAfter || 1000;
+            await new Promise(resolve => setTimeout(resolve, ms));
+            addMessage('agent', `⏱️ Waited ${ms}ms`);
+            
+          } else if (action.type === 'scroll') {
+            const result = await executeScrollAction(action, domSnapshot);
+            if (result.success) {
+              addMessage('agent', `✅ Scrolled to: ${result.target}`);
+            } else {
+              addMessage('agent', `❌ Scroll failed: ${result.error}`);
+            }
+            
+          } else if (action.type === 'extract') {
+            const result = await executeExtractAction(action);
+            if (result.success) {
+              addMessage('agent', `✅ Extracted:\n${result.data}`);
+            } else {
+              addMessage('agent', `❌ Extraction failed`);
+            }
+          }
+          
+          // Wait after action if specified
+          if (action.waitAfter) {
+            await new Promise(resolve => setTimeout(resolve, action.waitAfter));
+          }
+        }
+        
+        addMessage('agent', `🎉 Completed all ${plan.actions.length} actions!`);
+        updateStatus('idle', 'Ready');
+        
+      } catch (error) {
+        console.error('Action chain error:', error);
+        addMessage('agent', `❌ Error: ${error.message}`);
+        updateStatus('idle', 'Ready');
+      }
+    }
+    
+    // Execute click action with visual feedback
+    async function executeClickAction(action, domSnapshot) {
+      console.log('executeClickAction:', action);
+      const selector = action.selector;
+      
+      if (selector.method === 'index' || selector.method === 'globalIndex') {
+        const elementIndex = parseInt(selector.value);
+        const element = domSnapshot.elements[elementIndex];
+        
+        if (!element) {
+          return { success: false, error: `Element at index ${elementIndex} not found in snapshot` };
+        }
+        
+        console.log('Found element in snapshot:', element);
+        
+        // Build CSS selector
+        let cssSelector = element.tag;
+        if (element.attributes.id) {
+          cssSelector = `#${element.attributes.id}`;
+        } else if (element.attributes.name) {
+          cssSelector = `${element.tag}[name="${element.attributes.name}"]`;
+        } else if (element.attributes.class) {
+          const firstClass = element.attributes.class.split(' ')[0];
+          cssSelector = `${element.tag}.${firstClass}`;
+        }
+        
+        console.log('Using CSS selector:', cssSelector);
+        
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const selector = ${JSON.stringify(cssSelector)};
+            const text = ${JSON.stringify(element.text)};
+            
+            console.log('Looking for element with selector:', selector);
+            
+            let el = document.querySelector(selector);
+            
+            if (!el) {
+              console.log('Selector failed, trying text match');
+              const all = Array.from(document.querySelectorAll(${JSON.stringify(element.tag)}));
+              el = all.find(e => e.textContent.trim().includes(text.trim().slice(0, 20)));
+            }
+            
+            if (el) {
+              console.log('Found element, clicking:', el);
+              el.click();
+              return { success: true, text: el.textContent.trim().slice(0, 50) };
+            }
+            
+            return { success: false, error: 'Element not found in DOM' };
+          })()
+        `);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return result;
+      }
+      
+      return { success: false, error: 'Unsupported selector method' };
+    }
+    
+    // Execute input action
+    async function executeInputAction(action, domSnapshot) {
+      // Similar implementation
+      return { success: false, error: 'Input action not yet implemented in shared function' };
+    }
+    
+    // Execute scroll action
+    async function executeScrollAction(action, domSnapshot) {
+      console.log('executeScrollAction:', action);
+      const selector = action.selector;
+      
+      if (selector.method === 'globalIndex') {
+        const elementIndex = parseInt(selector.value);
+        const element = domSnapshot.elements[elementIndex];
+        
+        if (!element) {
+          return { success: false, error: `Element at globalIndex ${elementIndex} not found` };
+        }
+        
+        let cssSelector = element.tag;
+        if (element.attributes.id) {
+          cssSelector = `#${element.attributes.id}`;
+        } else if (element.attributes.class) {
+          const firstClass = element.attributes.class.split(' ')[0];
+          cssSelector = `${element.tag}.${firstClass}`;
+        }
+        
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const selector = ${JSON.stringify(cssSelector)};
+            const text = ${JSON.stringify(element.text)};
+            
+            let el = document.querySelector(selector);
+            
+            if (!el) {
+              const all = Array.from(document.querySelectorAll(${JSON.stringify(element.tag)}));
+              el = all.find(e => e.textContent.trim().includes(text.trim()));
+            }
+            
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              
+              const originalOutline = el.style.outline;
+              el.style.outline = '3px solid #667eea';
+              setTimeout(() => {
+                el.style.outline = originalOutline;
+              }, 2000);
+              
+              return { success: true, target: el.textContent.trim().slice(0, 50) };
+            }
+            
+            return { success: false, error: 'Element not found' };
+          })()
+        `);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return result;
+      }
+      
+      return { success: false, error: 'Unsupported selector method for scroll' };
+    }
+    
+    // Execute extract action
+    async function executeExtractAction(action) {
+      const result = await webview.executeJavaScript(`
+        (function() {
+          const elements = Array.from(document.querySelectorAll('h1, h2, h3, p, li'));
+          const visible = elements.filter(el => el.offsetParent !== null);
+          const text = visible.map(el => el.textContent.trim()).filter(t => t.length > 10);
+          return { success: true, data: text.slice(0, 10).join('\\n\\n') };
+        })()
+      `);
+      
+      return result;
+    }
+    
+    // Autonomous loop - continuously evaluate and act until goal is achieved
+    async function runAutonomousLoop() {
+      stopRequested = false;
+      updateStatus('running', 'Autonomous mode active');
+      
+      while (autonomousMode && currentStep < maxAutonomousSteps && !stopRequested) {
+        currentStep++;
+        
+        try {
+          // Wait for page to be ready
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Capture current DOM state
+          const domSnapshot = await webview.executeJavaScript(`
+            (function() {
+              const elements = Array.from(document.querySelectorAll('*'));
+              return {
+                url: window.location.href,
+                title: document.title,
+                elements: elements.slice(0, 100).map((el, idx) => ({
+                  id: idx,
+                  tag: el.tagName.toLowerCase(),
+                  text: (el.textContent || '').trim().slice(0, 100),
+                  attributes: Object.fromEntries(
+                    Array.from(el.attributes || []).map(a => [a.name, a.value])
+                  ),
+                  visible: el.offsetParent !== null,
+                  selectors: {
+                    id: el.id || null,
+                    class: el.className || null
+                  }
+                }))
+              };
+            })()
+          `);
+          
+          console.log(`Autonomous step ${currentStep}: Evaluating page ${domSnapshot.url}`);
+          addMessage('agent', `🔄 Step ${currentStep}: Evaluating current page...`);
+          
+          // Call LLM for autonomous decision
+          const llmResult = await window.activiDesktop.autonomousGoalSeek(
+            autonomousGoal,
+            conversationHistory,
+            domSnapshot
+          );
+          
+          if (!llmResult.success) {
+            throw new Error(llmResult.error || 'LLM request failed');
+          }
+          
+          // Parse response
+          let decision = null;
+          try {
+            decision = JSON.parse(llmResult.response);
+          } catch (e) {
+            const jsonMatch = llmResult.response.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              decision = JSON.parse(jsonMatch[0]);
+            }
+          }
+          
+          if (!decision) {
+            throw new Error('Could not parse LLM response');
+          }
+          
+          console.log('Autonomous decision:', decision);
+          
+          // Update conversation history
+          conversationHistory.push({
+            role: 'assistant',
+            content: JSON.stringify(decision)
+          });
+          
+          // Show progress
+          addMessage('agent', `📊 Progress: ${decision.progress}`);
+          
+          // Check if goal is achieved
+          if (decision.goalAchieved) {
+            addMessage('agent', `🎉 Goal achieved! ${decision.reasoning}`);
+            autonomousMode = false;
+            updateStatus('idle', 'Goal achieved');
+            break;
+          }
+          
+          // Check if agent needs help
+          if (decision.needsHelp) {
+            addMessage('agent', `❓ I need help: ${decision.reasoning}`);
+            autonomousMode = false;
+            updateStatus('idle', 'Needs assistance');
+            break;
+          }
+          
+          // Execute actions
+          if (decision.actions && decision.actions.length > 0) {
+            addMessage('agent', `💡 ${decision.reasoning}`);
+            
+            for (let i = 0; i < decision.actions.length; i++) {
+              if (stopRequested) break;
+              
+              const action = decision.actions[i];
+              const stepNum = i + 1;
+              
+              addMessage('agent', `⚡ Action ${stepNum}/${decision.actions.length}: ${action.type}...`);
+              
+              if (action.type === 'click') {
+                const result = await executeClick(action, domSnapshot);
+                if (!result.success) {
+                  addMessage('agent', `❌ Failed: ${result.error}`);
+                  // Don't break - let LLM handle failure in next iteration
+                } else {
+                  addMessage('agent', `✅ Clicked: ${result.text}`);
+                }
+                
+              } else if (action.type === 'input') {
+                const result = await executeInput(action, domSnapshot);
+                if (!result.success) {
+                  addMessage('agent', `❌ Failed: ${result.error}`);
+                } else {
+                  addMessage('agent', `✅ Entered text into: ${result.field}`);
+                }
+                
+              } else if (action.type === 'navigate') {
+                const url = action.selector?.value || action.value;
+                webview.src = url;
+                addMessage('agent', `✅ Navigating to: ${url}`);
+                
+              } else if (action.type === 'wait') {
+                const ms = action.value || action.waitAfter || 1000;
+                await new Promise(resolve => setTimeout(resolve, ms));
+                addMessage('agent', `⏱️ Waited ${ms}ms`);
+                
+              } else if (action.type === 'extract') {
+                const result = await executeExtract(action);
+                if (result.success) {
+                  addMessage('agent', `✅ Extracted:\n${result.data}`);
+                  // Add extracted data to conversation history
+                  conversationHistory.push({
+                    role: 'user',
+                    content: `Extracted data: ${result.data}`
+                  });
+                }
+              }
+              
+              // Wait after action if specified
+              if (action.waitAfter) {
+                await new Promise(resolve => setTimeout(resolve, action.waitAfter));
+              }
+            }
+            
+            // Wait for page to settle after actions
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+          } else {
+            // No actions to take
+            addMessage('agent', '⚠️ No actions determined. Stopping.');
+            autonomousMode = false;
+            break;
+          }
+          
+        } catch (error) {
+          console.error('Autonomous loop error:', error);
+          addMessage('agent', `❌ Error in autonomous execution: ${error.message}`);
+          autonomousMode = false;
+          updateStatus('idle', 'Error');
+          break;
+        }
+      }
+      
+      // Check why we exited
+      if (currentStep >= maxAutonomousSteps) {
+        addMessage('agent', `⚠️ Reached maximum steps (${maxAutonomousSteps}). Stopping to prevent infinite loop.`);
+      }
+      
+      if (stopRequested) {
+        addMessage('agent', '⏹️ Execution stopped by user');
+      }
+      
+      updateStatus('idle', 'Ready');
+      autonomousMode = false;
+    }
+    
+    // Send message
+    async function sendMessage() {
+      const message = chatInput.value.trim();
+      if (!message) return;
+      
+      // Add user message
+      addMessage('user', message);
+      chatInput.value = '';
+      chatSend.disabled = true;
+      
+      // Check if we're in autonomous mode
+      if (currentMode === 'autonomous') {
+        autonomousMode = true;
+        autonomousGoal = message;
+        conversationHistory = [];
+        currentStep = 0;
+        
+        addMessage('agent', '🤖 Autonomous mode activated. I\'ll work toward your goal continuously...');
+        await runAutonomousLoop();
+        
+        chatSend.disabled = false;
+        return;
+      }
+      
+      // Add agent thinking message
+      const thinkingMsg = addMessage('agent', '🤔 Analyzing page and understanding your request...');
+      
+      try {
+        // Capture DOM snapshot from webview
+        const domSnapshot = await webview.executeJavaScript(`
+          (function() {
+            const elements = Array.from(document.querySelectorAll('*'));
+            
+            // Log clickable elements for debugging
+            const clickables = Array.from(document.querySelectorAll('button, a, [role="button"], [onclick]'));
+            console.log('=== CLICKABLE ELEMENTS ON PAGE ===');
+            clickables.forEach((el, i) => {
+              console.log(i + ':', el.tagName, '"' + el.textContent.trim().slice(0, 50) + '"');
+            });
+            
+            return {
+              url: window.location.href,
+              elements: elements.slice(0, 100).map((el, idx) => ({
+                id: idx,
+                tag: el.tagName.toLowerCase(),
+                text: (el.textContent || '').trim().slice(0, 100),
+                attributes: Object.fromEntries(
+                  Array.from(el.attributes || []).map(a => [a.name, a.value])
+                ),
+                visible: el.offsetParent !== null,
+                selectors: {
+                  id: el.id || null,
+                  class: el.className || null
+                }
+              }))
+            };
+          })()
+        `);
+        
+        console.log('DOM snapshot captured:', domSnapshot.elements.length, 'elements');
+        
+        // Check if LLM is configured
+        const config = await window.activiDesktop?.getConfig();
+        const hasApiKey = config?.llm?.apiKey && config.llm.apiKey.length > 0;
+        
+        if (hasApiKey && window.activiDesktop?.chatWithLLM) {
+          thinkingMsg.textContent = '🤖 Using AI to understand your request...';
+          
+          const llmResult = await window.activiDesktop.chatWithLLM(message, domSnapshot);
+          
+          if (llmResult.success) {
+            thinkingMsg.remove();
+            
+            // Parse LLM response
+            const response = llmResult.response;
+            console.log('LLM response:', response);
+            
+            // Try to extract JSON action from response
+            let action = null;
+            
+            // Try parsing as direct JSON
+            try {
+              action = JSON.parse(response);
+            } catch (e) {
+              // Try extracting JSON from text
+              const jsonMatch = response.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                try {
+                  action = JSON.parse(jsonMatch[0]);
+                } catch (e2) {
+                  console.error('Failed to parse JSON:', e2);
+                }
+              }
+            }
+            
+            console.log('Parsed action:', action);
+            
+            if (action && action.actions && Array.isArray(action.actions)) {
+              // New structured action format
+              console.log('✅ Using new structured format');
+              console.log('Actions to execute:', action.actions);
+              try {
+                await executeActionChain(action, domSnapshot);
+                console.log('✅ executeActionChain completed');
+              } catch (error) {
+                console.error('❌ executeActionChain failed:', error);
+                addMessage('agent', `❌ Error executing actions: ${error.message}`);
+              }
+            } else if (action && action.action_type) {
+              // Legacy format - convert to new format
+              console.log('Converting legacy format to new format');
+              console.log('Target description:', action.target_description);
+              
+              // Clean up target description - remove extra words
+              let targetText = (action.target_description || '')
+                .replace(/button|link|element|the|a|an|'|"/gi, '')
+                .trim();
+              
+              console.log('Cleaned target text:', targetText);
+              
+              const convertedAction = {
+                actions: [{
+                  type: action.action_type,
+                  selector: {
+                    method: 'text',
+                    value: targetText
+                  },
+                  value: action.value || '',
+                  waitAfter: 500
+                }],
+                reasoning: action.reasoning || 'Converted from legacy format'
+              };
+              
+              console.log('Converted action:', convertedAction);
+              await executeActionChain(convertedAction, domSnapshot);
+            } else {
+              // LLM returned text response, not structured action
+              console.log('No structured action found, showing text response');
+              addMessage('agent', response);
+              updateStatus('idle', 'Ready');
+            }
+          } else {
+            throw new Error(llmResult.error || 'LLM request failed');
+          }
+        } else {
+          // Fallback to pattern matching
+          thinkingMsg.remove();
+          
+          if (!hasApiKey) {
+            addMessage('agent', '⚠️ LLM not configured. Using basic pattern matching.\n\nClick Settings to configure AI features for better understanding.');
+          }
+          
+          await executePatternMatchAction(message, domSnapshot);
+        }
+      } catch (error) {
+        console.error('Chat error:', error);
+        thinkingMsg.remove();
+        
+        if (error.message.includes('API key') || error.message.includes('401')) {
+          addMessage('agent', `❌ Invalid API key. Please click Settings to configure your LLM provider.`);
+        } else {
+          addMessage('agent', `❌ Error: ${error.message}`);
+        }
+      }
+      
+      chatSend.disabled = false;
+    }
+    
+    // Execute structured action chain
+    async function executeActionChain(plan, domSnapshot) {
+      console.log('Executing action chain:', plan);
+      
+      if (!plan.actions || plan.actions.length === 0) {
+        addMessage('agent', '❌ No actions to execute');
+        return;
+      }
+      
+      addMessage('agent', `📋 Plan: ${plan.reasoning}`);
+      updateStatus('running', 'Executing actions...');
+      
+      try {
+        for (let i = 0; i < plan.actions.length; i++) {
+          const action = plan.actions[i];
+          const stepNum = i + 1;
+          
+          addMessage('agent', `⚡ Step ${stepNum}/${plan.actions.length}: ${action.type}...`);
+          
+          if (action.type === 'click') {
+            const result = await executeClick(action, domSnapshot);
+            if (!result.success) {
+              addMessage('agent', `❌ Failed: ${result.error}`);
+              break;
+            }
+            addMessage('agent', `✅ Clicked: ${result.text}`);
+            
+          } else if (action.type === 'input') {
+            const result = await executeInput(action, domSnapshot);
+            if (!result.success) {
+              addMessage('agent', `❌ Failed: ${result.error}`);
+              break;
+            }
+            addMessage('agent', `✅ Entered text into: ${result.field}`);
+            
+          } else if (action.type === 'navigate') {
+            const url = action.selector?.value || action.value;
+            webview.src = url;
+            addMessage('agent', `✅ Navigating to: ${url}`);
+            
+          } else if (action.type === 'wait') {
+            const ms = action.value || action.waitAfter || 1000;
+            await new Promise(resolve => setTimeout(resolve, ms));
+            addMessage('agent', `⏱️ Waited ${ms}ms`);
+            
+          } else if (action.type === 'extract') {
+            const result = await executeExtract(action);
+            if (result.success) {
+              addMessage('agent', `✅ Extracted:\n${result.data}`);
+            } else {
+              addMessage('agent', `❌ Extraction failed`);
+            }
+          } else if (action.type === 'scroll') {
+            const result = await executeScroll(action, domSnapshot);
+            if (result.success) {
+              addMessage('agent', `✅ Scrolled to: ${result.target}`);
+            } else {
+              addMessage('agent', `❌ Scroll failed: ${result.error}`);
+            }
+          }
+          
+          // Wait after action if specified
+          if (action.waitAfter) {
+            await new Promise(resolve => setTimeout(resolve, action.waitAfter));
+          }
+        }
+        
+        addMessage('agent', `🎉 Completed all ${plan.actions.length} actions!`);
+        updateStatus('idle', 'Ready');
+        
+      } catch (error) {
+        console.error('Action chain error:', error);
+        addMessage('agent', `❌ Error: ${error.message}`);
+        updateStatus('idle', 'Ready');
+      }
+    }
+    
+    // Execute a click action with precise selector
+    async function executeClick(action, domSnapshot) {
+      const selector = action.selector;
+      
+      if (selector.method === 'index' || selector.method === 'globalIndex') {
+        // Use element index from snapshot
+        const elementIndex = parseInt(selector.value);
+        const element = domSnapshot.elements[elementIndex];
+        
+        if (!element) {
+          return { success: false, error: `Element at index ${elementIndex} not found` };
+        }
+        
+        // Build a reliable selector from element properties
+        let cssSelector = element.tag;
+        if (element.attributes.id) {
+          cssSelector = `#${element.attributes.id}`;
+        } else if (element.attributes.name) {
+          cssSelector = `${element.tag}[name="${element.attributes.name}"]`;
+        } else if (element.attributes.class) {
+          const firstClass = element.attributes.class.split(' ')[0];
+          cssSelector = `${element.tag}.${firstClass}`;
+        }
+        
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const selector = ${JSON.stringify(cssSelector)};
+            const text = ${JSON.stringify(element.text)};
+            
+            // Try CSS selector first
+            let el = document.querySelector(selector);
+            
+            // Fallback: find by text content
+            if (!el) {
+              const all = Array.from(document.querySelectorAll(${JSON.stringify(element.tag)}));
+              el = all.find(e => e.textContent.trim().includes(text.trim()));
+            }
+            
+            if (el) {
+              // Get element position for animation
+              const rect = el.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              
+              // Create animated cursor
+              const cursor = document.createElement('div');
+              cursor.id = 'activi-agent-cursor';
+              cursor.style.cssText = \`
+                position: fixed;
+                width: 24px;
+                height: 24px;
+                background: radial-gradient(circle, #667eea 0%, #764ba2 100%);
+                border: 2px solid white;
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 999999;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+                transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+              \`;
+              
+              // Start from top-left
+              cursor.style.left = '20px';
+              cursor.style.top = '20px';
+              document.body.appendChild(cursor);
+              
+              // Animate to element
+              setTimeout(() => {
+                cursor.style.opacity = '1';
+                cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                cursor.style.left = centerX + 'px';
+                cursor.style.top = centerY + 'px';
+              }, 50);
+              
+              // Wait for animation, then show click effect
+              setTimeout(() => {
+                // Click ripple effect
+                const ripple = document.createElement('div');
+                ripple.style.cssText = \`
+                  position: fixed;
+                  left: \${centerX}px;
+                  top: \${centerY}px;
+                  width: 10px;
+                  height: 10px;
+                  background: rgba(102, 126, 234, 0.4);
+                  border: 2px solid #667eea;
+                  border-radius: 50%;
+                  pointer-events: none;
+                  z-index: 999998;
+                  transform: translate(-50%, -50%);
+                  animation: activi-click-ripple 0.6s ease-out;
+                \`;
+                document.body.appendChild(ripple);
+                
+                // Add ripple animation if not exists
+                if (!document.getElementById('activi-animations')) {
+                  const style = document.createElement('style');
+                  style.id = 'activi-animations';
+                  style.textContent = \`
+                    @keyframes activi-click-ripple {
+                      0% {
+                        width: 10px;
+                        height: 10px;
+                        opacity: 1;
+                      }
+                      100% {
+                        width: 60px;
+                        height: 60px;
+                        opacity: 0;
+                      }
+                    }
+                    @keyframes activi-pulse {
+                      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+                      50% { transform: translate(-50%, -50%) scale(0.8); }
+                    }
+                  \`;
+                  document.head.appendChild(style);
+                }
+                
+                // Pulse cursor
+                cursor.style.animation = 'activi-pulse 0.3s ease-in-out';
+                
+                // Highlight target element
+                const originalOutline = el.style.outline;
+                const originalBoxShadow = el.style.boxShadow;
+                el.style.outline = '3px solid #667eea';
+                el.style.boxShadow = '0 0 20px rgba(102, 126, 234, 0.6)';
+                
+                // Click the element
+                setTimeout(() => {
+                  el.click();
+                  
+                  // Remove effects
+                  setTimeout(() => {
+                    cursor.style.opacity = '0';
+                    cursor.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                    ripple.remove();
+                    
+                    setTimeout(() => {
+                      cursor.remove();
+                      el.style.outline = originalOutline;
+                      el.style.boxShadow = originalBoxShadow;
+                    }, 300);
+                  }, 400);
+                }, 100);
+                
+                setTimeout(() => ripple.remove(), 600);
+              }, 850);
+              
+              console.log('Clicking element with animation:', el);
+              return { success: true, text: el.textContent.trim().slice(0, 50) };
+            }
+            
+            return { success: false, error: 'Element not found in DOM' };
+          })()
+        `);
+        
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        return result;
+        
+      } else if (selector.method === 'css') {
+        // Direct CSS selector with animation
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const el = document.querySelector(${JSON.stringify(selector.value)});
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              
+              // Show animated cursor (reuse animation code)
+              const cursor = document.createElement('div');
+              cursor.style.cssText = \`
+                position: fixed; width: 24px; height: 24px;
+                background: radial-gradient(circle, #667eea 0%, #764ba2 100%);
+                border: 2px solid white; border-radius: 50%;
+                pointer-events: none; z-index: 999999;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+                transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+                opacity: 0; transform: translate(-50%, -50%) scale(0.5);
+                left: 20px; top: 20px;
+              \`;
+              document.body.appendChild(cursor);
+              
+              setTimeout(() => {
+                cursor.style.opacity = '1';
+                cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                cursor.style.left = centerX + 'px';
+                cursor.style.top = centerY + 'px';
+              }, 50);
+              
+              setTimeout(() => {
+                el.style.outline = '3px solid #667eea';
+                el.click();
+                setTimeout(() => {
+                  cursor.remove();
+                  el.style.outline = '';
+                }, 500);
+              }, 900);
+              
+              return { success: true, text: el.textContent.trim().slice(0, 50) };
+            }
+            return { success: false, error: 'Element not found' };
+          })()
+        `);
+        
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        return result;
+        
+      } else if (selector.method === 'text') {
+        // Find by text content with animation
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const searchText = ${JSON.stringify(selector.value.toLowerCase())};
+            console.log('Searching for text:', searchText);
+            
+            const clickables = Array.from(document.querySelectorAll(
+              'button, a, [role="button"], [onclick], input[type="button"], input[type="submit"]'
+            ));
+            
+            console.log('Found', clickables.length, 'clickable elements');
+            
+            // Try exact match first
+            let el = clickables.find(e => 
+              e.textContent.toLowerCase().trim() === searchText
+            );
+            
+            // Try contains match
+            if (!el) {
+              el = clickables.find(e => 
+                e.textContent.toLowerCase().includes(searchText)
+              );
+            }
+            
+            // Try word match (any word in search text matches any word in element)
+            if (!el) {
+              const searchWords = searchText.split(/\\s+/).filter(w => w.length > 2);
+              el = clickables.find(e => {
+                const elementText = e.textContent.toLowerCase();
+                return searchWords.some(word => elementText.includes(word));
+              });
+            }
+            
+            if (el) {
+              console.log('✅ Found element:', el.textContent.trim().slice(0, 50));
+            } else {
+              console.log('❌ No element found for:', searchText);
+              console.log('Available clickable texts:', clickables.map(e => e.textContent.trim().slice(0, 30)));
+            }
+            
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              
+              const cursor = document.createElement('div');
+              cursor.style.cssText = \`
+                position: fixed; width: 24px; height: 24px;
+                background: radial-gradient(circle, #667eea 0%, #764ba2 100%);
+                border: 2px solid white; border-radius: 50%;
+                pointer-events: none; z-index: 999999;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+                transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+                opacity: 0; transform: translate(-50%, -50%) scale(0.5);
+                left: 20px; top: 20px;
+              \`;
+              document.body.appendChild(cursor);
+              
+              setTimeout(() => {
+                cursor.style.opacity = '1';
+                cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                cursor.style.left = centerX + 'px';
+                cursor.style.top = centerY + 'px';
+              }, 50);
+              
+              setTimeout(() => {
+                el.style.outline = '3px solid #667eea';
+                el.click();
+                setTimeout(() => {
+                  cursor.remove();
+                  el.style.outline = '';
+                }, 500);
+              }, 900);
+              
+              return { success: true, text: el.textContent.trim().slice(0, 50) };
+            }
+            return { success: false, error: 'Element not found' };
+          })()
+        `);
+        
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        return result;
+      }
+      
+      return { success: false, error: 'Invalid selector method' };
+    }
+    
+    // Execute an input action
+    async function executeInput(action, domSnapshot) {
+      const selector = action.selector;
+      const value = action.value || '';
+      
+      if (selector.method === 'index') {
+        const elementIndex = parseInt(selector.value);
+        const element = domSnapshot.elements[elementIndex];
+        
+        if (!element) {
+          return { success: false, error: `Element at index ${elementIndex} not found` };
+        }
+        
+        let cssSelector = element.tag;
+        if (element.attributes.id) {
+          cssSelector = `#${element.attributes.id}`;
+        } else if (element.attributes.name) {
+          cssSelector = `${element.tag}[name="${element.attributes.name}"]`;
+        }
+        
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const selector = ${JSON.stringify(cssSelector)};
+            const value = ${JSON.stringify(value)};
+            
+            let el = document.querySelector(selector);
+            
+            if (!el) {
+              const placeholder = ${JSON.stringify(element.attributes.placeholder || '')};
+              const all = Array.from(document.querySelectorAll('input, textarea'));
+              el = all.find(e => e.placeholder === placeholder);
+            }
+            
+            if (el) {
+              // Animate cursor to input field
+              const rect = el.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              
+              const cursor = document.createElement('div');
+              cursor.style.cssText = \`
+                position: fixed; width: 24px; height: 24px;
+                background: radial-gradient(circle, #667eea 0%, #764ba2 100%);
+                border: 2px solid white; border-radius: 50%;
+                pointer-events: none; z-index: 999999;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+                transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+                opacity: 0; transform: translate(-50%, -50%) scale(0.5);
+                left: 20px; top: 20px;
+              \`;
+              document.body.appendChild(cursor);
+              
+              setTimeout(() => {
+                cursor.style.opacity = '1';
+                cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                cursor.style.left = centerX + 'px';
+                cursor.style.top = centerY + 'px';
+              }, 50);
+              
+              setTimeout(() => {
+                // Highlight field
+                const originalOutline = el.style.outline;
+                el.style.outline = '3px solid #667eea';
+                el.focus();
+                
+                // Type with animation
+                let currentValue = '';
+                const typeSpeed = 50;
+                let charIndex = 0;
+                
+                const typeInterval = setInterval(() => {
+                  if (charIndex < value.length) {
+                    currentValue += value[charIndex];
+                    el.value = currentValue;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    charIndex++;
+                  } else {
+                    clearInterval(typeInterval);
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    
+                    setTimeout(() => {
+                      cursor.remove();
+                      el.style.outline = originalOutline;
+                    }, 500);
+                  }
+                }, typeSpeed);
+              }, 900);
+              
+              return { success: true, field: el.name || el.id || el.placeholder || 'field' };
+            }
+            
+            return { success: false, error: 'Input field not found' };
+          })()
+        `);
+        
+        // Wait for typing animation
+        await new Promise(resolve => setTimeout(resolve, 1500 + (value.length * 50)));
+        
+        return result;
+        
+      } else if (selector.method === 'css') {
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const el = document.querySelector(${JSON.stringify(selector.value)});
+            const value = ${JSON.stringify(value)};
+            
+            if (el) {
+              el.value = value;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return { success: true, field: el.name || el.id || 'field' };
+            }
+            return { success: false, error: 'Input field not found' };
+          })()
+        `);
+        
+        return result;
+      }
+      
+      return { success: false, error: 'Invalid selector method' };
+    }
+    
+    // Execute an extract action
+    async function executeExtract(action) {
+      const result = await webview.executeJavaScript(`
+        (function() {
+          const elements = Array.from(document.querySelectorAll('h1, h2, h3, p, li'));
+          const visible = elements.filter(el => el.offsetParent !== null);
+          const text = visible.map(el => el.textContent.trim()).filter(t => t.length > 10);
+          return { success: true, data: text.slice(0, 10).join('\\n\\n') };
+        })()
+      `);
+      
+      return result;
+    }
+    
+    // Execute a scroll action
+    async function executeScroll(action, domSnapshot) {
+      const selector = action.selector;
+      
+      if (selector.method === 'globalIndex') {
+        // Use global DOM index
+        const elementIndex = parseInt(selector.value);
+        const element = domSnapshot.elements[elementIndex];
+        
+        if (!element) {
+          return { success: false, error: `Element at globalIndex ${elementIndex} not found` };
+        }
+        
+        // Build selector
+        let cssSelector = element.tag;
+        if (element.attributes.id) {
+          cssSelector = `#${element.attributes.id}`;
+        } else if (element.attributes.class) {
+          const firstClass = element.attributes.class.split(' ')[0];
+          cssSelector = `${element.tag}.${firstClass}`;
+        }
+        
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const selector = ${JSON.stringify(cssSelector)};
+            const text = ${JSON.stringify(element.text)};
+            
+            let el = document.querySelector(selector);
+            
+            if (!el) {
+              const all = Array.from(document.querySelectorAll(${JSON.stringify(element.tag)}));
+              el = all.find(e => e.textContent.trim().includes(text.trim()));
+            }
+            
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              
+              // Highlight briefly
+              const originalOutline = el.style.outline;
+              el.style.outline = '3px solid #667eea';
+              setTimeout(() => {
+                el.style.outline = originalOutline;
+              }, 2000);
+              
+              return { success: true, target: el.textContent.trim().slice(0, 50) };
+            }
+            
+            return { success: false, error: 'Element not found' };
+          })()
+        `);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return result;
+        
+      } else if (selector.method === 'css') {
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const el = document.querySelector(${JSON.stringify(selector.value)});
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return { success: true, target: el.textContent.trim().slice(0, 50) };
+            }
+            return { success: false, error: 'Element not found' };
+          })()
+        `);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return result;
+      }
+      
+      return { success: false, error: 'Invalid selector method for scroll' };
+    }
+    
+    // Execute action determined by LLM (legacy format)
+    async function executeLLMAction(action, domSnapshot) {
+      console.log('Executing LLM action:', action);
+      
+      if (!action || !action.action_type) {
+        addMessage('agent', '❌ Could not understand the action to take.');
+        return;
+      }
+      
+      addMessage('agent', `💡 ${action.reasoning || 'Processing your request...'}`);
+      updateStatus('running', `${action.action_type}...`);
+      
+      if (action.action_type === 'click') {
+          addMessage('agent', `I'll click that element for you. Looking for it on the page...`);
+          updateStatus('running', 'Searching for element...');
+          
+          // Extract what to click from action
+          const target = action.target_description || '';
+          
+          // Execute in webview - pass target as parameter to avoid escaping issues
+          const result = await webview.executeJavaScript(`
+            (function() {
+              const target = ${JSON.stringify(target.toLowerCase())};
+              
+              // Extract key search terms (remove common words)
+              const searchTerms = target
+                .replace(/button|link|element|the|a|an/gi, '')
+                .trim()
+                .split(/\\s+/)
+                .filter(term => term.length > 2);
+              
+              console.log('Searching for:', searchTerms);
+              
+              // Try to find clickable elements
+              const clickables = Array.from(document.querySelectorAll(
+                'button, a, [role="button"], [onclick], input[type="button"], input[type="submit"]'
+              ));
+              
+              console.log('Found', clickables.length, 'clickable elements');
+              
+              // Score each element
+              const scored = clickables.map(el => {
+                const text = (el.textContent || '').toLowerCase().trim();
+                const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+                const title = (el.getAttribute('title') || '').toLowerCase();
+                const combined = text + ' ' + ariaLabel + ' ' + title;
+                
+                // Calculate match score
+                let score = 0;
+                searchTerms.forEach(term => {
+                  if (combined.includes(term)) {
+                    score += 10;
+                  }
+                  // Partial match
+                  if (combined.split(/\\s+/).some(word => word.includes(term) || term.includes(word))) {
+                    score += 5;
+                  }
+                });
+                
+                // Bonus for exact match
+                if (combined.includes(target)) {
+                  score += 20;
+                }
+                
+                // Bonus for visible elements
+                if (el.offsetParent !== null) {
+                  score += 5;
+                }
+                
+                return { element: el, score, text: text.slice(0, 50) };
+              });
+              
+              // Sort by score
+              scored.sort((a, b) => b.score - a.score);
+              
+              console.log('Top matches:', scored.slice(0, 3).map(s => ({ text: s.text, score: s.score })));
+              
+              // Get best match
+              const best = scored[0];
+              
+              if (best && best.score > 0) {
+                console.log('Clicking element:', best.text, 'score:', best.score);
+                best.element.click();
+                return { success: true, text: best.text || best.element.tagName };
+              }
+              
+              return { success: false, error: 'No matching element found' };
+            })()
+          `);
+          
+          if (result.success) {
+            addMessage('agent', `✅ Found and clicked: "${result.text}"!`);
+          } else {
+            addMessage('agent', `❌ Could not find that element. Try being more specific.`);
+          }
+          updateStatus('idle', 'Ready');
+          
+      } else if (action.action_type === 'input') {
+          addMessage('agent', `I'll fill in that field for you...`);
+          updateStatus('running', 'Filling form...');
+          
+          // Extract field and value from action
+          const field = action.target_description || '';
+          const value = action.value || '';
+          
+          const result = await webview.executeJavaScript(`
+            (function() {
+              const field = "${field.toLowerCase()}";
+              const value = "${value}";
+              
+              const inputs = Array.from(document.querySelectorAll('input, textarea'));
+              const match = inputs.find(inp => 
+                inp.placeholder?.toLowerCase().includes(field) ||
+                inp.name?.toLowerCase().includes(field) ||
+                inp.id?.toLowerCase().includes(field)
+              );
+              
+              if (match) {
+                match.value = value;
+                match.dispatchEvent(new Event('input', { bubbles: true }));
+                return { success: true, field: match.name || match.id };
+              }
+              
+              return { success: false };
+            })()
+          `);
+          
+          if (result.success) {
+            addMessage('agent', `✅ Filled field successfully!`);
+          } else {
+            addMessage('agent', `❌ Could not find that field.`);
+          }
+          updateStatus('idle', 'Ready');
+          
+      } else if (action.action_type === 'navigate') {
+          // Extract URL or page name from target description
+          let url = action.target_description || '';
+          
+          // If it's a page name, try to find the link
+          if (!url.startsWith('http')) {
+            addMessage('agent', `Looking for "${url}" link...`);
+            
+            const result = await webview.executeJavaScript(`
+              (function() {
+                const target = "${url.toLowerCase()}";
+                const links = Array.from(document.querySelectorAll('a'));
+                const match = links.find(link => 
+                  link.textContent.toLowerCase().includes(target)
+                );
+                
+                if (match) {
+                  match.click();
+                  return { success: true, text: match.textContent.trim() };
+                }
+                
+                return { success: false };
+              })()
+            `);
+            
+            if (result.success) {
+              addMessage('agent', `✅ Navigating to "${result.text}"...`);
+            } else {
+              addMessage('agent', `❌ Could not find that link.`);
+            }
+          } else {
+            webview.src = url;
+            addMessage('agent', `✅ Navigating to ${url}...`);
+          }
+          updateStatus('idle', 'Ready');
+          
+      } else if (action.action_type === 'extract') {
+        addMessage('agent', `Extracting information about: ${action.target_description}...`);
+        
+        const result = await webview.executeJavaScript(`
+          (function() {
+            // Extract visible text content
+            const elements = Array.from(document.querySelectorAll('h1, h2, h3, p, li, span'));
+            const text = elements
+              .filter(el => el.offsetParent !== null)
+              .map(el => el.textContent.trim())
+              .filter(t => t.length > 10)
+              .slice(0, 10);
+            
+            return { success: true, data: text };
+          })()
+        `);
+        
+        if (result.success && result.data.length > 0) {
+          addMessage('agent', `✅ Here's what I found:\n\n${result.data.map(t => `• ${t.slice(0, 100)}`).join('\n')}`);
+        } else {
+          addMessage('agent', `❌ Could not extract that information.`);
+        }
+        updateStatus('idle', 'Ready');
+        
+      } else {
+        addMessage('agent', `I understand you want to ${action.action_type}, but I'm not sure how to do that yet.`);
+        updateStatus('idle', 'Ready');
+      }
+    }
+    
+    // Fallback pattern matching (when LLM not available)
+    async function executePatternMatchAction(message, domSnapshot) {
+      const lower = message.toLowerCase();
+      
+      if (lower.includes('click') || lower.includes('press')) {
+        addMessage('agent', `I'll click that element for you. Looking for it on the page...`);
+        updateStatus('running', 'Searching for element...');
+        
+        const target = message.replace(/click|press|on|the|button/gi, '').trim();
+        
+        const result = await webview.executeJavaScript(`
+          (function() {
+            const target = ${JSON.stringify(target.toLowerCase())};
+            
+            // Extract key search terms
+            const searchTerms = target
+              .replace(/button|link|element|the|a|an/gi, '')
+              .trim()
+              .split(/\\s+/)
+              .filter(term => term.length > 2);
+            
+            const clickables = Array.from(document.querySelectorAll(
+              'button, a, [role="button"], [onclick], input[type="button"], input[type="submit"]'
+            ));
+            
+            // Score each element
+            const scored = clickables.map(el => {
+              const text = (el.textContent || '').toLowerCase().trim();
+              const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+              const combined = text + ' ' + ariaLabel;
+              
+              let score = 0;
+              searchTerms.forEach(term => {
+                if (combined.includes(term)) score += 10;
+              });
+              if (combined.includes(target)) score += 20;
+              if (el.offsetParent !== null) score += 5;
+              
+              return { element: el, score, text: text.slice(0, 50) };
+            });
+            
+            scored.sort((a, b) => b.score - a.score);
+            const best = scored[0];
+            
+            if (best && best.score > 0) {
+              best.element.click();
+              return { success: true, text: best.text || best.element.tagName };
+            }
+            
+            return { success: false, error: 'Element not found' };
+          })()
+        `);
+        
+        if (result.success) {
+          addMessage('agent', `✅ Found and clicked: "${result.text}"!`);
+        } else {
+          addMessage('agent', `❌ Could not find that element. Try being more specific.`);
+        }
+        updateStatus('idle', 'Ready');
+        
+      } else {
+        addMessage('agent', `I can help you interact with this page. Try:\n\n• "Click the Watch Demo button"\n• "Fill email with test@example.com"\n• "Navigate to pricing page"\n• "Extract feature names"`);
+      }
+    }
+    
+    function addMessage(type, text) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+      
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = type === 'user' ? 'You' : 'Agent';
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'message-bubble';
+      bubble.innerHTML = text.replace(/\n/g, '<br>');
+      
+      messageDiv.appendChild(label);
+      messageDiv.appendChild(bubble);
+      chatMessages.appendChild(messageDiv);
+      
+      // Scroll to bottom
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      
+      return messageDiv;
+    }
+    
+    chatSend.addEventListener('click', sendMessage);
+    
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+    
+    // Initialize
+    console.log('Desktop Agent UI loaded');
+    console.log('Current mode:', currentMode);
+    
+    // Test button functionality
+    setTimeout(() => {
+      console.log('All mode buttons:', document.querySelectorAll('.mode-btn').length);
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        console.log('Button:', btn.dataset.mode, 'Active:', btn.classList.contains('active'));
+      });
+    }, 1000);
+    
+    }); // End DOMContentLoaded
+  </script>
+</body>
+</html>

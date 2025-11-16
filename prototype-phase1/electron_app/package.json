@@ -4,7 +4,7 @@
   "description": "Prototype Electron shell for ChatGPT Atlas demo",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "npx electron ."
   },
   "devDependencies": {
     "electron": "^26.0.0"

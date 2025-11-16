@@ -52,13 +52,42 @@ async def analyze(req: AnalyzeRequest):
     el, conf = engine.find_element(req.goal, snapshot)
     actions = []
     if el:
-        css = el.selectors.get('css') or el.attributes.get('id') or ''
+        # Build a usable CSS selector from available attributes
+        css = ''
+        if el.selectors.get('id'):
+            css = f"#{el.selectors['id']}"
+        elif el.selectors.get('name'):
+            css = f"{el.tag}[name='{el.selectors['name']}']"
+        elif el.selectors.get('aria-label'):
+            css = f"{el.tag}[aria-label='{el.selectors['aria-label']}']"
+        else:
+            # Fallback: use tag + text content match (not ideal but works)
+            css = el.tag
+        
+        # Determine action type and extract value for inputs
+        action_type = 'click'
+        value = None
+        
+        if el.tag == 'input' and el.attributes.get('type') not in ['button', 'submit', 'checkbox', 'radio']:
+            action_type = 'input'
+            # Try to extract value from goal (e.g., "enter username john" -> "john")
+            goal_lower = req.goal.lower()
+            for verb in ['enter', 'type', 'input', 'fill']:
+                if verb in goal_lower:
+                    parts = req.goal.split()
+                    if len(parts) > 2:
+                        # Take everything after the field name as value
+                        value = ' '.join(parts[2:])
+                    break
+        
         actions.append({
-            'action': 'click' if el.tag in ('a','button') or el.tag == 'input' else 'click',
+            'action': action_type,
             'confidence': conf,
             'tag': el.tag,
             'text': el.text,
-            'css': css
+            'css': css,
+            'element_id': el.id,
+            'value': value
         })
 
     return {'actions': actions}

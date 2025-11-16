@@ -1,0 +1,80 @@
+{
+  "id": "example-form-fill",
+  "name": "Example: Fill Contact Form",
+  "description": "Demonstrates basic workflow with navigation, input, and click actions",
+  "steps": [
+    {
+      "id": "step-1",
+      "type": "navigate",
+      "description": "Navigate to contact page",
+      "config": {
+        "url": "https://example.com/contact"
+      }
+    },
+    {
+      "id": "step-2",
+      "type": "input",
+      "description": "Enter name",
+      "config": {
+        "selector": "#name",
+        "value": "{{userName}}"
+      }
+    },
+    {
+      "id": "step-3",
+      "type": "input",
+      "description": "Enter email using AI element finding",
+      "config": {
+        "description": "email input field",
+        "value": "{{userEmail}}"
+      }
+    },
+    {
+      "id": "step-4",
+      "type": "input",
+      "description": "Enter message",
+      "config": {
+        "selector": "#message",
+        "value": "{{messageText}}"
+      }
+    },
+    {
+      "id": "step-5",
+      "type": "wait",
+      "description": "Wait for form validation",
+      "config": {
+        "duration": 1000
+      }
+    },
+    {
+      "id": "step-6",
+      "type": "click",
+      "description": "Click submit button",
+      "config": {
+        "description": "submit button"
+      }
+    },
+    {
+      "id": "step-7",
+      "type": "wait",
+      "description": "Wait for confirmation",
+      "config": {
+        "duration": 2000
+      }
+    },
+    {
+      "id": "step-8",
+      "type": "extract",
+      "description": "Extract confirmation message",
+      "config": {
+        "prompt": "Extract the success confirmation message from the page",
+        "outputVar": "confirmationMessage"
+      }
+    }
+  ],
+  "variables": {
+    "userName": "John Doe",
+    "userEmail": "john.doe@example.com",
+    "messageText": "Hello, I would like to learn more about your services."
+  }
+}
