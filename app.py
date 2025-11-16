@@ -1,9 +1,11 @@
-from voice_agent import Agent
+from playwright_agent import PlaywrightAgent
+import asyncio
 
-def main():
-    """Entry point for running the demo and generating narration"""
-    agent = Agent('sample_page.html')
-    logs = agent.run_demo()
+async def main():
+    """Entry point for running the Playwright demo and generating narration"""
+    agent = PlaywrightAgent()
+    await agent.setup()
+    logs = await agent.run_demo()
     script = agent.generate_narration_script()
     print("Actions:", logs)
     print("Narration script:", script)
@@ -13,6 +15,7 @@ def main():
         print(f"Voiceover generated in {audio_file}")
     except Exception as e:
         print(f"Voiceover generation failed: {e}")
+    await agent.close()
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    asyncio.run(main())
