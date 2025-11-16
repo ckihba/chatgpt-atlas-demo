@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ChatGPT Atlas - Prototype Shell</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #container { display: flex; height: 100vh; }
+    #left { flex: 1; border-right: 1px solid #ddd; }
+    #right { width: 380px; padding: 12px; box-sizing: border-box; }
+    iframe { width: 100%; height: 100%; border: none; }
+    button { padding: 8px 12px; margin: 6px 0; }
+    .log { height: 260px; overflow: auto; background: #111; color: #0f0; padding: 8px; font-family: monospace; font-size: 12px }
+    .actions { margin-top: 8px }
+    .action-item { border: 1px solid #ccc; padding: 8px; margin-bottom: 6px }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="left">
+      <iframe id="pageFrame" src="../sample_page.html"></iframe>
+    </div>
+    <div id="right">
+      <h3>Atlas Prototype</h3>
+      <label>Goal: <input id="goalInput" value="click Submit" style="width:100%" /></label>
+      <div style="margin-top:8px">
+        <button id="captureBtn">Capture & Analyze</button>
+        <button id="executeBtn" disabled>Execute Selected Action</button>
+      </div>
+      <h4>Actions</h4>
+      <div id="actionsList" class="actions"></div>
+      <h4>Log</h4>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
