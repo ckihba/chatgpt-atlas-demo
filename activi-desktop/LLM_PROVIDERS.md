@@ -32,6 +32,7 @@ The Activi Desktop Agent supports multiple LLM providers for agentic reasoning a
 - `llama-3.3-70b-versatile` - Recommended (best quality)
 - `llama-3.1-70b-versatile` - Very good quality
 - `llama-3.1-8b-instant` - Ultra fast, lower quality
+- `gpt-4o-mini` - OpenAI GPT-4o Mini via Groq (fast inference)
 - `mixtral-8x7b-32768` - Good for long context
 
 **Setup**:
@@ -57,9 +58,12 @@ The Activi Desktop Agent supports multiple LLM providers for agentic reasoning a
 **Best for**: Multimodal tasks, long context, free tier
 
 **Models**:
+- `gemini-2.0-flash-thinking-exp` - Best for complex reasoning and agentic tasks
 - `gemini-2.0-flash-exp` - Latest experimental model (fast)
-- `gemini-1.5-pro` - Best quality, 2M token context
+- `gemini-exp-1206` - Latest experimental release (Dec 2024)
+- `gemini-1.5-pro` - Best for coding, 2M token context
 - `gemini-1.5-flash` - Fast, good quality
+- `gemini-1.5-flash-8b` - Ultra fast, smaller model
 
 **Setup**:
 1. Get API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
@@ -75,7 +79,8 @@ The Activi Desktop Agent supports multiple LLM providers for agentic reasoning a
 **Why Gemini?**
 - Huge context window (up to 2M tokens)
 - Excellent free tier
-- Good reasoning capabilities
+- Gemini 2.0 Flash Thinking: Extended reasoning for complex tasks
+- Gemini 1.5 Pro: Excellent for coding and technical tasks
 - Native multimodal support
 
 ---
@@ -131,11 +136,26 @@ The Activi Desktop Agent supports multiple LLM providers for agentic reasoning a
 
 ## Recommendations by Use Case
 
+### For Agentic Reasoning & Complex Tasks
+**Use Gemini** with `gemini-2.0-flash-thinking-exp`
+- Extended reasoning capabilities
+- Multi-step problem solving
+- Best for autonomous agent workflows
+- Free tier available
+
+### For Coding & Technical Tasks
+**Use Gemini** with `gemini-1.5-pro`
+- Excellent code understanding
+- 2M token context for large codebases
+- Strong debugging capabilities
+- Good at following technical instructions
+
 ### For Development & Testing
-**Use Groq** with `llama-3.3-70b-versatile`
+**Use Groq** with `llama-3.3-70b-versatile` or `gpt-4o-mini`
 - Ultra fast iteration
 - Free tier is generous
 - Good quality for testing
+- GPT-4o Mini via Groq combines quality + speed
 
 ### For Production
 **Use OpenAI** with `gpt-4o-mini`
