@@ -83,7 +83,7 @@ export interface DOMSnapshot {
 }
 
 export interface LLMConfig {
-  provider: 'activi-cloud' | 'openai' | 'azure' | 'anthropic' | 'local'
+  provider: 'activi-cloud' | 'openai' | 'azure' | 'anthropic' | 'local' | 'groq' | 'gemini'
   endpoint?: string
   apiKey?: string
   model: string

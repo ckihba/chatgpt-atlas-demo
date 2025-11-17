@@ -16,20 +16,36 @@ export class LLMClient {
     const provider = this.config?.provider || 'openai'
 
     switch (provider) {
+      case 'groq':
+        // Groq uses OpenAI-compatible API
+        baseConfig.baseURL = 'https://api.groq.com/openai/v1'
+        baseConfig.apiKey = this.config?.apiKey
+        break
+      
+      case 'gemini':
+        // Google Gemini via OpenAI-compatible endpoint
+        baseConfig.baseURL = 'https://generativelanguage.googleapis.com/v1beta/openai/'
+        baseConfig.apiKey = this.config?.apiKey
+        break
+      
       case 'activi-cloud':
         baseConfig.baseURL = this.config?.endpoint || 'https://api.activi.ai/v1'
         break
+      
       case 'azure':
         baseConfig.baseURL = this.config?.endpoint
         baseConfig.defaultQuery = { 'api-version': '2024-02-01' }
         baseConfig.defaultHeaders = { 'api-key': this.config?.apiKey }
         break
+      
       case 'local':
         baseConfig.baseURL = this.config?.endpoint || 'http://localhost:1234/v1'
         break
+      
       case 'anthropic':
         // Would use @anthropic-ai/sdk instead
         throw new Error('Anthropic support coming soon')
+      
       default:
         // OpenAI
         break
