@@ -563,11 +563,12 @@
             </optgroup>
           </select>
           
-          <div style="background: #f0f9ff; padding: 12px; border-radius: 4px; font-size: 12px; color: #0369a1;">
-            💡 <strong>Get API Keys:</strong><br>
-            • <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #0369a1;">OpenAI</a> - Best quality, moderate cost<br>
-            • <a href="https://console.groq.com/keys" target="_blank" style="color: #0369a1;">Groq</a> - Ultra fast inference, free tier<br>
-            • <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #0369a1;">Google AI Studio</a> - Gemini models, generous free tier
+          <div id="providerInfo" style="background: #f0f9ff; padding: 12px; border-radius: 4px; font-size: 12px; color: #0369a1; margin-bottom: 12px;">
+            <!-- Dynamic provider info will be inserted here -->
+          </div>
+          
+          <div id="modelInfo" style="background: #fef3c7; padding: 12px; border-radius: 4px; font-size: 12px; color: #92400e; margin-bottom: 12px; display: none;">
+            <!-- Dynamic model info will be inserted here -->
           </div>
         </div>
         <div class="overlay-buttons">
@@ -586,10 +587,99 @@
           document.getElementById('llmApiKey').value = config.llm?.apiKey || '';
           modelSelect.value = config.llm?.model || 'gpt-4o-mini';
           
+          // Provider information
+          const providerInfo = {
+            openai: {
+              title: '💡 OpenAI',
+              description: 'Best quality, proven at scale. Moderate cost.',
+              link: 'https://platform.openai.com/api-keys',
+              linkText: 'Get API Key',
+              note: 'Recommended for production use.'
+            },
+            groq: {
+              title: '⚡ Groq - Ultra Fast',
+              description: '10-100x faster inference (300+ tokens/sec). Generous free tier.',
+              link: 'https://console.groq.com/keys',
+              linkText: 'Get Free API Key',
+              note: 'Perfect for development & testing. Free: 30 req/min, 14,400/day.'
+            },
+            gemini: {
+              title: '🧠 Google Gemini',
+              description: 'Best for reasoning & coding. Huge context (2M tokens). Generous free tier.',
+              link: 'https://aistudio.google.com/app/apikey',
+              linkText: 'Get Free API Key',
+              note: 'Free: 1,500 req/day. Gemini 2.0 Thinking for complex reasoning.'
+            },
+            'activi-cloud': {
+              title: '☁️ Activi.ai Cloud',
+              description: 'Managed service, no API key management needed.',
+              link: null,
+              note: 'Uses your Activi.ai account.'
+            },
+            azure: {
+              title: '🏢 Azure OpenAI',
+              description: 'Enterprise deployment with compliance requirements.',
+              link: null,
+              note: 'Requires Azure subscription and deployment.'
+            },
+            local: {
+              title: '🔒 Local Models',
+              description: 'Privacy-first, offline use, no API costs.',
+              link: 'https://lmstudio.ai/',
+              linkText: 'Get LM Studio',
+              note: 'Install LM Studio or Ollama. No data leaves your machine.'
+            }
+          };
+          
+          // Model information
+          const modelInfo = {
+            'gpt-4o-mini': '⚡ Fast & cheap. Best balance for most tasks. $0.15/1M tokens.',
+            'gpt-4o': '🎯 Highest quality. Best reasoning. $2.50/1M tokens.',
+            'llama-3.3-70b-versatile': '🌟 Recommended. Best quality on Groq. Free tier.',
+            'llama-3.1-8b-instant': '⚡ Ultra fast. Good for simple tasks. Free tier.',
+            'gpt-4o-mini': '⚡ OpenAI quality with Groq speed. Best of both worlds.',
+            'gemini-2.0-flash-thinking-exp': '🧠 Extended reasoning mode. Perfect for autonomous agents & complex tasks.',
+            'gemini-1.5-pro': '💻 Best for coding. 2M token context. Can handle entire codebases.',
+            'gemini-exp-1206': '🆕 Latest experimental. Cutting-edge capabilities.',
+            'gemini-2.0-flash-exp': '⚡ Fast & experimental. Good all-around.',
+            'gemini-1.5-flash': '⚡ Fast & reliable. Good quality.',
+            'gemini-1.5-flash-8b': '⚡⚡ Ultra fast. Smaller model for simple tasks.'
+          };
+          
+          // Update provider info
+          function updateProviderInfo(provider) {
+            const info = providerInfo[provider];
+            const infoDiv = document.getElementById('providerInfo');
+            
+            if (info) {
+              let html = `<strong>${info.title}</strong><br>${info.description}<br>`;
+              if (info.link) {
+                html += `<a href="${info.link}" target="_blank" style="color: #0369a1; text-decoration: underline;">${info.linkText}</a><br>`;
+              }
+              html += `<em>${info.note}</em>`;
+              infoDiv.innerHTML = html;
+            }
+          }
+          
+          // Update model info
+          function updateModelInfo(model) {
+            const info = modelInfo[model];
+            const infoDiv = document.getElementById('modelInfo');
+            
+            if (info) {
+              infoDiv.innerHTML = `<strong>About this model:</strong> ${info}`;
+              infoDiv.style.display = 'block';
+            } else {
+              infoDiv.style.display = 'none';
+            }
+          }
+          
           // Update model options based on provider
           providerSelect.addEventListener('change', (e) => {
             const provider = e.target.value;
             const modelGroups = modelSelect.querySelectorAll('optgroup');
+            
+            updateProviderInfo(provider);
             
             // Show/hide relevant model groups
             modelGroups.forEach(group => {
@@ -602,12 +692,23 @@
                 modelSelect.value = 'llama-3.3-70b-versatile';
               } else if (provider === 'gemini' && label.includes('gemini')) {
                 group.style.display = '';
-                modelSelect.value = 'gemini-2.0-flash-exp';
+                modelSelect.value = 'gemini-2.0-flash-thinking-exp';
               } else {
                 group.style.display = 'none';
               }
             });
+            
+            updateModelInfo(modelSelect.value);
           });
+          
+          // Update model info when model changes
+          modelSelect.addEventListener('change', (e) => {
+            updateModelInfo(e.target.value);
+          });
+          
+          // Initialize with current provider
+          updateProviderInfo(providerSelect.value);
+          updateModelInfo(modelSelect.value);
         });
       }
       
